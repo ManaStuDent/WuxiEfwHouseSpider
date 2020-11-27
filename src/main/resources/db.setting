@@ -1,6 +1,6 @@
 ## db.setting文件
 
-url = jdbc:mysql://localhost:3306/bookstoredb?useUnicode=true&characterEncoding=UTF-8&useSSL=false
+url = jdbc:mysql://localhost:3306/efw?useUnicode=true&characterEncoding=UTF-8&useSSL=false
 user = root
 pass = 123456
 

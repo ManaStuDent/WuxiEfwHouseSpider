@@ -22,7 +22,7 @@ public class JsoupMain {
 
 	public static void main(String[] args) {
 		// 每日凌晨 2 点执行
-		CronUtil.schedule("0 0 12 * * ?", (Task) () -> {
+		CronUtil.schedule("0 0 2 * * ?", (Task) () -> {
 			try {
 				jsoup();
 			} catch (IOException e) {
