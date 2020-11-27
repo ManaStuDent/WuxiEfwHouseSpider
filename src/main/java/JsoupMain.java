@@ -1,8 +1,10 @@
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.cron.CronUtil;
+import cn.hutool.cron.task.Task;
+import cn.hutool.db.Db;
+import cn.hutool.db.Entity;
 import cn.hutool.log.Log;
 import cn.hutool.log.LogFactory;
-import cn.hutool.poi.excel.BigExcelWriter;
-import cn.hutool.poi.excel.ExcelUtil;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -10,31 +12,34 @@ import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class JsoupMain {
 
 	private static final Log log = LogFactory.get();
 
-	public static void main(String[] args) throws IOException, SQLException {
-		jsoup();
-//		CronUtil.schedule("0 0/5 * * * ?", (Task) () -> {
-//			try {
-//				jsoup();
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//			} catch (SQLException e) {
-//				e.printStackTrace();
-//			}
-//		});
-//
-//		CronUtil.setMatchSecond(true);
-//		CronUtil.start();
+	public static void main(String[] args) {
+		// 每日凌晨 2 点执行
+		CronUtil.schedule("0 0 12 * * ?", (Task) () -> {
+			try {
+				jsoup();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		});
+
+		CronUtil.setMatchSecond(true);
+		CronUtil.start();
 	}
 
 	public static void jsoup() throws IOException, SQLException {
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+		log.error("开始爬取 " + sdf.format(new Date()) + " 日数据");
+
 		String url = "https://www.efw.cn/Sale/-p1-r70-s90";
 		Document doc = Jsoup.connect(url)
 				.header("Accept", "*/*")
@@ -45,19 +50,13 @@ public class JsoupMain {
 				.timeout(5000)
 				.get();
 		int lastPageNum = getLastPageNum(doc);
-
-		BigExcelWriter writer = ExcelUtil.getBigWriter("WuxiEfwHouseReport.xlsx");
-		writer.merge(11, "无锡e房网二手房70-90平米");
-
 		for (int i = 1; i <= lastPageNum; i++) {
-			log.error("开始爬取第 " + i + " 页");
-			soupData(i, writer);
+			log.info("开始爬取第 " + i + " 页");
+			soupData(i);
 		}
-
-		writer.close();
 	}
 
-	private static void soupData(int pageNum, BigExcelWriter writer) throws IOException, SQLException {
+	private static void soupData(int pageNum) throws IOException, SQLException {
 		String url = "https://www.efw.cn/Sale/-p" + pageNum + "-r70-s90";
 		Document doc = Jsoup.connect(url)
 				.header("Accept", "*/*")
@@ -77,7 +76,9 @@ public class JsoupMain {
 			Elements titleElements = element.select(".mb10 a");
 			String titleText = titleElements.text();
 			String href = titleElements.attr("href");
-			log.info(titleText + " " + href);
+			String houseId = href.replace("/Sale", "").replace(".html", "");
+
+			log.info(titleText + " " + href + " " + houseId);
 
 			String address = element.select(".box12tb1").text();
 			String[] addressSplice = address.split("\\|");
@@ -109,30 +110,64 @@ public class JsoupMain {
 			String price_single = element.select(".text4.f14").text().replace("单价", "").replace(" 元/平", "");
 			log.info(price_single);//单价
 
-//			Db.use().insert(
-//					Entity.create("jsoup")
-//							.set("url_path", element.toString())
-//			);
+			DecimalFormat df = new DecimalFormat("0.00");
+			double priceDouble = Double.parseDouble(price);
+			Double area = priceDouble * 10000 / Double.parseDouble(price_single);
 
+			CreateCmd cmd = new CreateCmd();
+			cmd.setTitleText(titleText);
+			cmd.setHref(href);
+			cmd.setHouseId(houseId);
+			cmd.setCommunityName(communityName);
+			cmd.setAddressDetails(addressDetails);
+			cmd.setDirection(direction);
+			cmd.setDecoration(decoration);
+			cmd.setFloor(floor);
+			cmd.setStructure(structure);
+			cmd.setArea(df.format(area));
+			cmd.setNearBackground(nearBackground);
+			cmd.setPrice(df.format(priceDouble));
+			cmd.setPrice_single(price_single);
 
-			Map<String, Object> row = new LinkedHashMap<>();
-			row.put("序号", (pageNum - 1) * 20 + i);
-			row.put("标题", titleText);
-			row.put("URL地址", "https://www.efw.cn/" + href);
-			row.put("小区名称", communityName);
-			row.put("详细地址", addressDetails);
-			row.put("朝向", direction);
-			row.put("装修情况", decoration);
-			row.put("楼层", floor);
-			row.put("几室几厅", structure);
-			row.put("是否近地铁", nearBackground);
-			row.put("价格", price);
-			row.put("单价", price_single);
-
-			rows.add(row);
+			//查询数据库是否存在数据，如果没有就 insert
+			List<Entity> entityList = Db.use().query("select * from house where house_id = ? order by create_date desc limit 1", houseId);
+			if (entityList.size() > 0) {
+				Entity entity = entityList.get(0);
+				String old_price = entity.get("total_price").toString();
+				if (!StrUtil.equals(old_price, df.format(priceDouble))) {
+					log.error(titleText + " 价格发生了变化");
+					int version = Integer.parseInt(entity.get("version") + "") + 1;
+					cmd.setVersion(version);
+					insertInDB(cmd);
+				}
+			} else {
+				cmd.setVersion(1);
+				insertInDB(cmd);
+			}
 		}
-		Boolean isWriteKeyAsHead = pageNum == 1;
-		writer.write(rows, isWriteKeyAsHead);
+
+	}
+
+	private static void insertInDB(CreateCmd cmd) throws SQLException {
+		//判断价格是否改变了，改变了新增一条历史记录
+		Db.use().insert(
+				Entity.create("house")
+						.set("title_text", cmd.getTitleText())
+						.set("house_id", cmd.getHouseId())
+						.set("url_path", "https://www.efw.cn/" + cmd.getHref())
+						.set("community_name", cmd.getCommunityName())
+						.set("address_details", cmd.getAddressDetails())
+						.set("direction", cmd.getDirection())
+						.set("decoration", cmd.getDecoration())
+						.set("floor", cmd.getFloor())
+						.set("structure", cmd.getStructure())
+						.set("area", cmd.getArea().replace("平方", ""))
+						.set("nearBackground", cmd.getNearBackground())
+						.set("total_price", cmd.getPrice())
+						.set("price_single", cmd.getPrice_single())
+						.set("create_date", new Date())
+						.set("version", cmd.getVersion())
+		);
 	}
 
 	/**
