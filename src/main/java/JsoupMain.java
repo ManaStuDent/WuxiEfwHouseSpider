@@ -43,6 +43,15 @@ public class JsoupMain {
 			}
 		});
 
+		//每小时查询一次数据库，防止数据库链接释放导致程序出错
+		CronUtil.schedule("0 0 0/1 * * ?", (Task) () -> {
+			try {
+				Db.use().query("select 1");
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		});
+
 		CronUtil.setMatchSecond(true);
 		CronUtil.start();
 	}
