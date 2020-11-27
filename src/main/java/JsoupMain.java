@@ -20,18 +20,6 @@ public class JsoupMain {
 
 	public static void main(String[] args) throws IOException, SQLException {
 		jsoup();
-//		CronUtil.schedule("0 0/5 * * * ?", (Task) () -> {
-//			try {
-//				jsoup();
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//			} catch (SQLException e) {
-//				e.printStackTrace();
-//			}
-//		});
-//
-//		CronUtil.setMatchSecond(true);
-//		CronUtil.start();
 	}
 
 	public static void jsoup() throws IOException, SQLException {
@@ -83,7 +71,6 @@ public class JsoupMain {
 			String[] addressSplice = address.split("\\|");
 			String communityName = addressSplice[0].trim();//小区名称
 			String addressDetails = addressSplice[1].trim();//详细地址
-
 			log.info(communityName + " " + addressDetails);
 
 			String tag = element.select(".box12tb2").text();
@@ -109,12 +96,6 @@ public class JsoupMain {
 			String price_single = element.select(".text4.f14").text().replace("单价", "").replace(" 元/平", "");
 			log.info(price_single);//单价
 
-//			Db.use().insert(
-//					Entity.create("jsoup")
-//							.set("url_path", element.toString())
-//			);
-
-
 			Map<String, Object> row = new LinkedHashMap<>();
 			row.put("序号", (pageNum - 1) * 20 + i);
 			row.put("标题", titleText);
@@ -131,6 +112,7 @@ public class JsoupMain {
 
 			rows.add(row);
 		}
+
 		Boolean isWriteKeyAsHead = pageNum == 1;
 		writer.write(rows, isWriteKeyAsHead);
 	}
