@@ -124,7 +124,7 @@ public class JsoupMain {
 			String price = element.select(".price1.f30").text();
 			log.info(price);//价格
 
-			String price_single = element.select(".text4.f14").text().replace("单价", "").replace(" 元/平", "");
+			String price_single = element.select(".text4.f14").text().replace("单价", "").replace("元/平", "");
 			log.info(price_single);//单价
 
 			DecimalFormat df = new DecimalFormat("0.00");
@@ -163,22 +163,24 @@ public class JsoupMain {
 			//如果价格发生变化，保存新的记录
 			if (!StrUtil.equals(old_price, df.format(priceDouble))) {
 				log.error(titleText + " 价格发生了变化");
+				insertInDB(cmd,"house_histroy"); //存储到历史记录
+
 				int version = Integer.parseInt(entity.get("version") + "") + 1;
 				cmd.setVersion(version);
-				insertInDB(cmd);
+				updateDB(cmd,"house", (int)entity.get("id"));
 			}
 		} else {
 			cmd.setVersion(1);
-			insertInDB(cmd);
+			insertInDB(cmd, "house");
 		}
 	}
 
 	/**
 	 * 保存数据到数据库
 	 */
-	private static void insertInDB(CreateCmd cmd) throws SQLException {
+	private static void insertInDB(CreateCmd cmd, String table) throws SQLException {
 		Db.use().insert(
-				Entity.create("house")
+				Entity.create(table)
 						.set("title_text", cmd.getTitleText())
 						.set("house_id", cmd.getHouseId())
 						.set("url_path", "https://www.efw.cn/" + cmd.getHref())
@@ -194,6 +196,28 @@ public class JsoupMain {
 						.set("price_single", cmd.getPrice_single())
 						.set("create_date", new Date())
 						.set("version", cmd.getVersion())
+		);
+	}
+
+	private static void updateDB(CreateCmd cmd, String table, int id) throws SQLException {
+		Db.use().update(
+				Entity.create()
+						.set("title_text", cmd.getTitleText())
+						.set("house_id", cmd.getHouseId())
+						.set("url_path", "https://www.efw.cn/" + cmd.getHref())
+						.set("community_name", cmd.getCommunityName())
+						.set("address_details", cmd.getAddressDetails())
+						.set("direction", cmd.getDirection())
+						.set("decoration", cmd.getDecoration())
+						.set("floor", cmd.getFloor())
+						.set("structure", cmd.getStructure())
+						.set("area", cmd.getArea().replace("平方", ""))
+						.set("nearBackground", cmd.getNearBackground())
+						.set("total_price", cmd.getPrice())
+						.set("price_single", cmd.getPrice_single())
+						.set("create_date", new Date())
+						.set("version", cmd.getVersion()),
+				Entity.create(table).set("id", id) //where条件
 		);
 	}
 
