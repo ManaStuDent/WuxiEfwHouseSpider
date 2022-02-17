@@ -13,6 +13,15 @@ public class CreateCmd {
 	private String price;
 	private String price_single;
 	private int version;
+	private String source;
+
+	public String getSource() {
+		return source;
+	}
+
+	public void setSource(String source) {
+		this.source = source;
+	}
 
 	public String getTitleText() {
 		return titleText;
