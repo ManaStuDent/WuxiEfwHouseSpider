@@ -16,7 +16,7 @@ import java.util.concurrent.ExecutorService;
 
 public class SpiderLianJia {
     private static final Log log = LogFactory.get();
-    private static ExecutorService executor = ThreadUtil.newExecutor(1);
+    private static ExecutorService executor = ThreadUtil.newExecutor(5);
 
     public static void main(String[] args) throws IOException, SQLException {
         spider();
@@ -26,7 +26,7 @@ public class SpiderLianJia {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         log.error("开始爬取 " + sdf.format(new Date()) + " 日数据");
 
-        String url = "https://wx.lianjia.com/ershoufang/a3/";
+        String url = "https://wx.lianjia.com/ershoufang/binhu/a3/";
         Document doc = SpiderConfig.getDocument(url);
         int lastPageNum = getLastPageNum(doc);
 
@@ -45,7 +45,7 @@ public class SpiderLianJia {
 
     private static void soupData(int pageNum) throws IOException, SQLException {
         log.error("开始爬取第 " + pageNum + " 页");
-        String url = "https://wx.lianjia.com/ershoufang/pg" + pageNum + "a3";
+        String url = "https://wx.lianjia.com/ershoufang/binhu/pg" + pageNum + "a3";
         Document doc = SpiderConfig.getDocument(url);
 
         Elements select = doc.select(".sellListContent .info");

@@ -43,7 +43,7 @@ public class SpiderDB {
                 Entity.create(table)
                         .set("title_text", cmd.getTitleText())
                         .set("house_id", cmd.getHouseId())
-                        .set("url_path", "https://www.efw.cn/" + cmd.getHref())
+                        .set("url_path", cmd.getHref())
                         .set("community_name", cmd.getCommunityName())
                         .set("address_details", cmd.getAddressDetails())
                         .set("direction", cmd.getDirection())
