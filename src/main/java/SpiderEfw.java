@@ -92,7 +92,7 @@ public class SpiderEfw {
 
             CreateCmd cmd = new CreateCmd();
             cmd.setTitleText(titleText);
-            cmd.setHref("https://www.efw.cn/" + href);
+            cmd.setHref("https://www.efw.cn" + href);
             cmd.setHouseId(houseId);
             cmd.setCommunityName(communityName);
             cmd.setAddressDetails(addressDetails);
